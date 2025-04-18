@@ -22,6 +22,7 @@ using LiveChartsCore.SkiaSharpView.Painting;
 using SkiaSharp;
 using System.ComponentModel;
 using System.IO;
+using NLog;
 
 namespace ESP32BLE
 {
@@ -44,6 +45,7 @@ namespace ESP32BLE
         private LineSeries<double> adcSeries;
         private List<(DateTime timestamp, double value)> dataBuffer = new();
         private readonly object bufferLock = new();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -89,14 +91,28 @@ namespace ESP32BLE
 
         public MainWindow()
         {
-            InitializeComponent();
-            InitializeBleWatcher();
-            InitializeConnectionTimer();
-            InitializeChart();
-            
-            devices = new ObservableCollection<BleDeviceInfo>();
-            lvDevices.ItemsSource = devices;
-            DataContext = this;
+            try
+            {
+                // Create Logs directory if it doesn't exist
+                Directory.CreateDirectory(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs"));
+                
+                InitializeComponent();
+                InitializeBleWatcher();
+                InitializeConnectionTimer();
+                InitializeChart();
+                
+                devices = new ObservableCollection<BleDeviceInfo>();
+                lvDevices.ItemsSource = devices;
+                DataContext = this;
+
+                Logger.Info("Application started successfully");
+                Logger.Debug("Initialization completed");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Error during application startup");
+                MessageBox.Show($"Error during startup: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void InitializeBleWatcher()
@@ -201,6 +217,9 @@ namespace ESP32BLE
                 btnScan.Content = "Start Scanning";
                 txtStatus.Text = "Scanning stopped";
             }
+
+            Logger.Info("Scan button clicked");
+            Logger.Debug("Scan button clicked");
         }
 
         private async void btnPair_Click(object sender, RoutedEventArgs e)
