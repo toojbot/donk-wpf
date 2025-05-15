@@ -1,4 +1,7 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -117,13 +120,29 @@ namespace ESP32BLE
 
         private void InitializeBleWatcher()
         {
-            watcher = new BluetoothLEAdvertisementWatcher
+            try
             {
-                ScanningMode = BluetoothLEScanningMode.Active
-            };
+                Logger.Debug("Initializing BLE watcher");
+                watcher = new BluetoothLEAdvertisementWatcher
+                {
+                    ScanningMode = BluetoothLEScanningMode.Active
+                };
 
-            watcher.Received += Watcher_Received;
-            watcher.Stopped += Watcher_Stopped;
+                watcher.Received += Watcher_Received;
+                watcher.Stopped += Watcher_Stopped;
+
+                // Start scanning automatically
+                watcher.Start();
+                isScanning = true;
+                btnScan.Content = "Stop Scanning";
+                txtStatus.Text = "Scanning for devices...";
+                Logger.Info("BLE watcher started automatically");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(ex, "Failed to initialize BLE watcher");
+                MessageBox.Show($"Failed to initialize Bluetooth: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void InitializeConnectionTimer()
@@ -170,22 +189,37 @@ namespace ESP32BLE
         {
             await Dispatcher.InvokeAsync(() =>
             {
-                var existingDevice = devices.FirstOrDefault(d => d.Address == args.BluetoothAddress);
-                if (existingDevice == null)
+                try
                 {
-                    devices.Add(new BleDeviceInfo
+                    var existingDevice = devices.FirstOrDefault(d => d.Address == args.BluetoothAddress);
+                    string deviceName = string.IsNullOrEmpty(args.Advertisement.LocalName) ? 
+                                      "Unknown Device" : args.Advertisement.LocalName;
+
+                    if (existingDevice == null)
                     {
-                        Name = args.Advertisement.LocalName,
-                        Address = args.BluetoothAddress,
-                        Rssi = args.RawSignalStrengthInDBm
-                    });
+                        Logger.Debug($"New device found - Name: {deviceName}, Address: {args.BluetoothAddress}, RSSI: {args.RawSignalStrengthInDBm}");
+                        devices.Add(new BleDeviceInfo
+                        {
+                            Name = deviceName,
+                            Address = args.BluetoothAddress,
+                            Rssi = args.RawSignalStrengthInDBm
+                        });
+                    }
+                    else
+                    {
+                        if (existingDevice.Rssi != args.RawSignalStrengthInDBm)
+                        {
+                            Logger.Debug($"Device updated - Name: {deviceName}, Address: {args.BluetoothAddress}, RSSI: {args.RawSignalStrengthInDBm}");
+                        }
+                        existingDevice.Rssi = args.RawSignalStrengthInDBm;
+                        existingDevice.Name = string.IsNullOrEmpty(args.Advertisement.LocalName) 
+                            ? existingDevice.Name 
+                            : args.Advertisement.LocalName;
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    existingDevice.Rssi = args.RawSignalStrengthInDBm;
-                    existingDevice.Name = string.IsNullOrEmpty(args.Advertisement.LocalName) 
-                        ? existingDevice.Name 
-                        : args.Advertisement.LocalName;
+                    Logger.Error(ex, "Error processing received BLE device");
                 }
             });
         }
@@ -202,24 +236,33 @@ namespace ESP32BLE
 
         private void btnScan_Click(object sender, RoutedEventArgs e)
         {
-            if (!isScanning)
+            try
             {
-                devices.Clear();
-                watcher.Start();
-                isScanning = true;
-                btnScan.Content = "Stop Scanning";
-                txtStatus.Text = "Scanning for devices...";
+                if (!isScanning)
+                {
+                    Logger.Info("Starting BLE scan");
+                    devices.Clear();
+                    watcher.Start();
+                    isScanning = true;
+                    btnScan.Content = "Stop Scanning";
+                    txtStatus.Text = "Scanning for devices...";
+                    Logger.Debug("BLE scan started");
+                }
+                else
+                {
+                    Logger.Info("Stopping BLE scan");
+                    watcher.Stop();
+                    isScanning = false;
+                    btnScan.Content = "Start Scanning";
+                    txtStatus.Text = "Scanning stopped";
+                    Logger.Debug($"BLE scan stopped. Found {devices.Count} devices");
+                }
             }
-            else
+            catch (Exception ex)
             {
-                watcher.Stop();
-                isScanning = false;
-                btnScan.Content = "Start Scanning";
-                txtStatus.Text = "Scanning stopped";
+                Logger.Error(ex, "Error toggling BLE scan");
+                MessageBox.Show($"Error controlling Bluetooth scan: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
-
-            Logger.Info("Scan button clicked");
-            Logger.Debug("Scan button clicked");
         }
 
         private async void btnPair_Click(object sender, RoutedEventArgs e)

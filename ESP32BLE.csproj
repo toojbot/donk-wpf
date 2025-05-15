@@ -8,15 +8,21 @@
     <UseWPF>true</UseWPF>
     <RuntimeIdentifiers>win-x86;win-x64</RuntimeIdentifiers>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <PackageManifest>Package.manifest</PackageManifest>
   </PropertyGroup>
 
   <ItemGroup>
     <None Remove="Assets\icon.ico" />
     <None Remove="NLog.config" />
+    <None Remove="Package.manifest" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="NLog.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Package.manifest">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
