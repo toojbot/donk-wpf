@@ -100,6 +100,10 @@ namespace ESP32BLE
                 Directory.CreateDirectory(System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Logs"));
                 
                 InitializeComponent();
+                
+                // Set default target address
+                txtTargetAddress.Text = "14141152650070";
+                
                 InitializeBleWatcher();
                 InitializeConnectionTimer();
                 InitializeChart();
@@ -195,15 +199,29 @@ namespace ESP32BLE
                     string deviceName = string.IsNullOrEmpty(args.Advertisement.LocalName) ? 
                                       "Unknown Device" : args.Advertisement.LocalName;
 
+                    // Check if this is our target device
+                    string targetAddress = txtTargetAddress.Text.Trim();
+                    bool isTargetDevice = !string.IsNullOrEmpty(targetAddress) && 
+                                        args.BluetoothAddress.ToString().EndsWith(targetAddress, StringComparison.OrdinalIgnoreCase);
+
                     if (existingDevice == null)
                     {
                         Logger.Debug($"New device found - Name: {deviceName}, Address: {args.BluetoothAddress}, RSSI: {args.RawSignalStrengthInDBm}");
-                        devices.Add(new BleDeviceInfo
+                        var newDevice = new BleDeviceInfo
                         {
                             Name = deviceName,
                             Address = args.BluetoothAddress,
                             Rssi = args.RawSignalStrengthInDBm
-                        });
+                        };
+                        devices.Add(newDevice);
+
+                        // If this is our target device, select it automatically
+                        if (isTargetDevice)
+                        {
+                            lvDevices.SelectedItem = newDevice;
+                            txtStatus.Text = "Target device found!";
+                            Logger.Info($"Target device found: {deviceName} ({args.BluetoothAddress})");
+                        }
                     }
                     else
                     {
@@ -215,6 +233,14 @@ namespace ESP32BLE
                         existingDevice.Name = string.IsNullOrEmpty(args.Advertisement.LocalName) 
                             ? existingDevice.Name 
                             : args.Advertisement.LocalName;
+
+                        // If this is our target device and it's not selected, select it
+                        if (isTargetDevice && lvDevices.SelectedItem != existingDevice)
+                        {
+                            lvDevices.SelectedItem = existingDevice;
+                            txtStatus.Text = "Target device found!";
+                            Logger.Info($"Target device found: {deviceName} ({args.BluetoothAddress})");
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -571,6 +597,17 @@ namespace ESP32BLE
             }
             
             base.OnClosed(e);
+        }
+
+        // Add helper method to validate Bluetooth address
+        private bool IsValidBluetoothAddress(string address)
+        {
+            // Remove any colons or hyphens
+            address = address.Replace(":", "").Replace("-", "");
+            
+            // Check if it's a valid hexadecimal number
+            return !string.IsNullOrEmpty(address) && 
+                   address.All(c => "0123456789ABCDEFabcdef".Contains(c));
         }
     }
 

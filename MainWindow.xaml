@@ -20,7 +20,10 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button x:Name="btnScan" Content="1. Start Scanning" Click="btnScan_Click" Width="100" Margin="30,0,30,0"/>
+            <Label Content="Target Address:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="txtTargetAddress" Width="120" Margin="0,0,20,0" VerticalAlignment="Center"
+                     ToolTip="Enter your device's Bluetooth address"/>
+            <Button x:Name="btnScan" Content="1. Start Scanning" Click="btnScan_Click" Width="100" Margin="10,0,30,0"/>
             <Button x:Name="btnPair" Content="2. Pair Device" Click="btnPair_Click" Width="100" Margin="0,0,30,0"/>
             <Button x:Name="btnConnect" Content="3. Connect" Click="btnConnect_Click" Width="100" Margin="0,0,30,0"/>
             <Button x:Name="btnTerminate" Content="4. Stop and Export CSV" Click="btnTerminate_Click" Width="130"/>
