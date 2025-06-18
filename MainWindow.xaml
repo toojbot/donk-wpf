@@ -8,15 +8,14 @@
         xmlns:lcCore="clr-namespace:LiveChartsCore;assembly=LiveChartsCore"
         Icon="Assets/icon.ico"
         mc:Ignorable="d"
-        Title="BLE Scanner" Height="900" Width="1200"
+        Title="BLE Scanner" Height="1000" Width="1200"
         WindowStartupLocation="CenterScreen">
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="50"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="150"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="100"/>
-            <RowDefinition Height="550"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
@@ -52,21 +51,55 @@
         </ListView>
 
         <TextBlock x:Name="txtStatus" Grid.Row="2" Margin="0,10,0,0"/>
-        
-        <TextBox x:Name="txtReceived" Grid.Row="3" Margin="0,10,0,0" 
-                 IsReadOnly="True" TextWrapping="Wrap" 
-                 VerticalScrollBarVisibility="Auto"/>
 
-        <Grid Grid.Row="4" Margin="0,10,0,0">
-            <lvc:CartesianChart
-                x:Name="chart"
-                Series="{Binding Series}"
-                XAxes="{Binding XAxes}"
-                YAxes="{Binding YAxes}"
-                DrawMarginFrame="{Binding DrawMarginFrame}"
-                ZoomMode="X"
-                AnimationsSpeed="00:00:00.1">
-            </lvc:CartesianChart>
+        <Grid Grid.Row="3" Margin="0,10,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            
+            <!-- Sound Chart -->
+            <Grid Grid.Row="0" Margin="0,0,0,5">
+                <lvc:CartesianChart
+                    x:Name="chartSound"
+                    Series="{Binding SoundSeries}"
+                    XAxes="{Binding XAxes}"
+                    YAxes="{Binding SoundYAxes}"
+                    DrawMarginFrame="{Binding DrawMarginFrame}"
+                    ZoomMode="X"
+                    AnimationsSpeed="00:00:00.1"
+                    Width="1100">
+                </lvc:CartesianChart>
+            </Grid>
+            
+            <!-- Temperature 1 Chart -->
+            <Grid Grid.Row="1" Margin="0,5,0,5">
+                <lvc:CartesianChart
+                    x:Name="chartTemp1"
+                    Series="{Binding Temp1Series}"
+                    XAxes="{Binding XAxes}"
+                    YAxes="{Binding Temp1YAxes}"
+                    DrawMarginFrame="{Binding DrawMarginFrame}"
+                    ZoomMode="X"
+                    AnimationsSpeed="00:00:00.1"
+                    Width="1100">
+                </lvc:CartesianChart>
+            </Grid>
+            
+            <!-- Temperature 2 Chart -->
+            <Grid Grid.Row="2" Margin="0,5,0,0">
+                <lvc:CartesianChart
+                    x:Name="chartTemp2"
+                    Series="{Binding Temp2Series}"
+                    XAxes="{Binding XAxes}"
+                    YAxes="{Binding Temp2YAxes}"
+                    DrawMarginFrame="{Binding DrawMarginFrame}"
+                    ZoomMode="X"
+                    AnimationsSpeed="00:00:00.1"
+                    Width="1100">
+                </lvc:CartesianChart>
+            </Grid>
         </Grid>
     </Grid>
 </Window>

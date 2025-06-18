@@ -43,10 +43,13 @@ namespace ESP32BLE
         private DispatcherTimer connectionCheckTimer;
         private const int RECONNECT_INTERVAL_MS = 2000; // Check every 2 seconds
         private const int MAX_POINTS = 300; // Number of points to show in chart
-        private Queue<double> dataPoints;
-        private ObservableCollection<ISeries> series;
-        private LineSeries<double> adcSeries;
-        private List<(DateTime timestamp, double value)> dataBuffer = new();
+        private Queue<double> soundDataPoints;
+        private Queue<double> temp1DataPoints;
+        private Queue<double> temp2DataPoints;
+        private LineSeries<double> soundSeries;
+        private LineSeries<double> temp1Series;
+        private LineSeries<double> temp2Series;
+        private List<(DateTime timestamp, double sound, double temp1, double temp2)> dataBuffer = new();
         private readonly object bufferLock = new();
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
@@ -54,11 +57,24 @@ namespace ESP32BLE
 
         public ObservableCollection<ISeries> Series 
         { 
-            get => series;
+            get => new ObservableCollection<ISeries> { soundSeries };
             set
             {
-                series = value;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Series)));
+            }
+        }
+
+        public ObservableCollection<ISeries> SoundSeries { get; set; }
+        public ObservableCollection<ISeries> Temp1Series { get; set; }
+        public ObservableCollection<ISeries> Temp2Series { get; set; }
+
+        public bool IsConnected
+        {
+            get => isConnected;
+            set
+            {
+                isConnected = value;
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsConnected)));
             }
         }
 
@@ -66,18 +82,43 @@ namespace ESP32BLE
         {
             new Axis
             {
-                Name = "Time",
                 NamePaint = new SolidColorPaint(SKColors.Black),
                 LabelsPaint = new SolidColorPaint(SKColors.Black),
                 TextSize = 12
             }
         };
 
-        public List<Axis> YAxes { get; set; } = new List<Axis>
+        public List<Axis> SoundYAxes { get; set; } = new List<Axis>
         {
             new Axis
             {
-                Name = "Value",
+                Name = "Sound",
+                NamePaint = new SolidColorPaint(SKColors.Black),
+                LabelsPaint = new SolidColorPaint(SKColors.Black),
+                TextSize = 12,
+                MinLimit = 0,
+                MaxLimit = 4095
+            }
+        };
+
+        public List<Axis> Temp1YAxes { get; set; } = new List<Axis>
+        {
+            new Axis
+            {
+                Name = "Temp 1",
+                NamePaint = new SolidColorPaint(SKColors.Black),
+                LabelsPaint = new SolidColorPaint(SKColors.Black),
+                TextSize = 12,
+                MinLimit = 0,
+                MaxLimit = 4095
+            }
+        };
+
+        public List<Axis> Temp2YAxes { get; set; } = new List<Axis>
+        {
+            new Axis
+            {
+                Name = "Temp 2",
                 NamePaint = new SolidColorPaint(SKColors.Black),
                 LabelsPaint = new SolidColorPaint(SKColors.Black),
                 TextSize = 12,
@@ -158,35 +199,80 @@ namespace ESP32BLE
 
         private void InitializeChart()
         {
-            dataPoints = new Queue<double>(MAX_POINTS);
-            adcSeries = new LineSeries<double>
+            // Initialize sound chart
+            soundDataPoints = new Queue<double>(MAX_POINTS);
+            soundSeries = new LineSeries<double>
             {
                 Values = new ObservableCollection<double>(),
                 Fill = null,
                 GeometrySize = 0,
                 LineSmoothness = 0.2,
                 Stroke = new SolidColorPaint(SKColors.Blue) { StrokeThickness = 2 },
-                Name = "Values"
+                Name = "Sound"
             };
 
+            // Initialize temperature 1 chart
+            temp1DataPoints = new Queue<double>(MAX_POINTS);
+            temp1Series = new LineSeries<double>
+            {
+                Values = new ObservableCollection<double>(),
+                Fill = null,
+                GeometrySize = 0,
+                LineSmoothness = 0.2,
+                Stroke = new SolidColorPaint(SKColors.Red) { StrokeThickness = 2 },
+                Name = "Temperature 1"
+            };
+
+            // Initialize temperature 2 chart
+            temp2DataPoints = new Queue<double>(MAX_POINTS);
+            temp2Series = new LineSeries<double>
+            {
+                Values = new ObservableCollection<double>(),
+                Fill = null,
+                GeometrySize = 0,
+                LineSmoothness = 0.2,
+                Stroke = new SolidColorPaint(SKColors.Green) { StrokeThickness = 2 },
+                Name = "Temperature 2"
+            };
+
+            // Initialize with zero values
             for (int i = 0; i < MAX_POINTS; i++)
             {
-                dataPoints.Enqueue(0);
+                soundDataPoints.Enqueue(0);
+                temp1DataPoints.Enqueue(0);
+                temp2DataPoints.Enqueue(0);
             }
-            adcSeries.Values = new ObservableCollection<double>(dataPoints);
 
-            Series = new ObservableCollection<ISeries> { adcSeries };
+            soundSeries.Values = new ObservableCollection<double>(soundDataPoints);
+            temp1Series.Values = new ObservableCollection<double>(temp1DataPoints);
+            temp2Series.Values = new ObservableCollection<double>(temp2DataPoints);
+
+            SoundSeries = new ObservableCollection<ISeries> { soundSeries };
+            Temp1Series = new ObservableCollection<ISeries> { temp1Series };
+            Temp2Series = new ObservableCollection<ISeries> { temp2Series };
         }
 
-        private void UpdateChart(double newValue)
+        private void UpdateChart(double soundValue, double temp1Value, double temp2Value)
         {
-            dataPoints.Enqueue(newValue);
-            dataPoints.Dequeue();
+            // Update sound chart
+            soundDataPoints.Enqueue(soundValue);
+            soundDataPoints.Dequeue();
+            soundSeries.Values = new ObservableCollection<double>(soundDataPoints);
 
-            var values = dataPoints.ToList();
-            adcSeries.Values = values;
+            // Update temperature 1 chart
+            temp1DataPoints.Enqueue(temp1Value);
+            temp1DataPoints.Dequeue();
+            temp1Series.Values = new ObservableCollection<double>(temp1DataPoints);
 
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Series)));
+            // Update temperature 2 chart
+            temp2DataPoints.Enqueue(temp2Value);
+            temp2DataPoints.Dequeue();
+            temp2Series.Values = new ObservableCollection<double>(temp2DataPoints);
+
+            // Notify property changes
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SoundSeries)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Temp1Series)));
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Temp2Series)));
         }
 
         private async void Watcher_Received(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)
@@ -358,7 +444,7 @@ namespace ESP32BLE
                 catch (Exception ex)
                 {
                     txtStatus.Text = $"Connection failed: {ex.Message}";
-                    isConnected = false;
+                    IsConnected = false;
                     connectionCheckTimer.Stop();
                 }
             }
@@ -391,7 +477,7 @@ namespace ESP32BLE
                                 {
                                     characteristic.ValueChanged += Characteristic_ValueChanged;
                                     txtStatus.Text = "Connected and listening for notifications";
-                                    isConnected = true;
+                                    IsConnected = true;
                                     connectionCheckTimer.Start();
                                     return;
                                 }
@@ -412,29 +498,43 @@ namespace ESP32BLE
             
             await Dispatcher.InvokeAsync(() =>
             {
-                //txtReceived.Text += value;
-                //if (txtReceived.Text.Length > 5000)
-                //{
-                //    txtReceived.Text = txtReceived.Text.Substring(txtReceived.Text.Length - 5000);
-                //}
-                //txtReceived.ScrollToEnd();
-
-                // Try to parse the value and update the chart
-                if (double.TryParse(value.Trim(), out double adcValue))
+                try
                 {
-                    UpdateChart(adcValue);
-                    // Add to buffer with timestamp
-                    lock (bufferLock)
+                    // Parse the received data
+                    string[] pairs = value.Trim().Split(',');
+                    Dictionary<string, int> values = new Dictionary<string, int>();
+
+                    foreach (string pair in pairs)
                     {
-                        dataBuffer.Add((DateTime.Now, adcValue));
+                        string[] keyValue = pair.Split(':');
+                        if (keyValue.Length == 2 && int.TryParse(keyValue[1], out int parsedValue))
+                        {
+                            values[keyValue[0]] = parsedValue;
+                        }
                     }
+
+                    // Update charts if we have valid data
+                    if (values.ContainsKey("S") && values.ContainsKey("T1") && values.ContainsKey("T2"))
+                    {
+                        UpdateChart(values["S"], values["T1"], values["T2"]);
+                        
+                        // Add to buffer with timestamp
+                        lock (bufferLock)
+                        {
+                            dataBuffer.Add((DateTime.Now, values["S"], values["T1"], values["T2"]));
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "Error parsing received data");
                 }
             });
         }
 
         private async void ConnectionCheckTimer_Tick(object sender, EventArgs e)
         {
-            if (isConnected && connectedDevice != null)
+            if (IsConnected && connectedDevice != null)
             {
                 try
                 {
@@ -487,7 +587,7 @@ namespace ESP32BLE
             catch (Exception ex)
             {
                 txtStatus.Text = $"Reconnection failed: {ex.Message}";
-                isConnected = false;
+                IsConnected = false;
             }
         }
 
@@ -495,30 +595,26 @@ namespace ESP32BLE
         {
             try
             {
-                // Create output directory if it doesn't exist
                 string outputDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "output");
                 Directory.CreateDirectory(outputDir);
 
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string filename = System.IO.Path.Combine(outputDir, $"data_{timestamp}.csv");
                 
-                // Create the CSV content
                 StringBuilder csv = new StringBuilder();
-                csv.AppendLine("Timestamp,Value");
+                csv.AppendLine("Timestamp,Sound,Temperature1,Temperature2");
                 
                 lock (bufferLock)
                 {
-                    foreach (var (time, value) in dataBuffer)
+                    foreach (var (time, sound, temp1, temp2) in dataBuffer)
                     {
-                        csv.AppendLine($"{time:yyyy-MM-dd HH:mm:ss.fff},{value}");
+                        csv.AppendLine($"{time:yyyy-MM-dd HH:mm:ss.fff},{sound},{temp1},{temp2}");
                     }
                 }
 
-                // Save the file
                 await File.WriteAllTextAsync(filename, csv.ToString());
                 txtStatus.Text = $"Data exported to {filename}";
                 
-                // Clear the buffer after successful export
                 lock (bufferLock)
                 {
                     dataBuffer.Clear();
@@ -538,7 +634,7 @@ namespace ESP32BLE
                 await ExportToCSV();
 
                 connectionCheckTimer.Stop();
-                isConnected = false;
+                IsConnected = false;
                 
                 if (notifyCharacteristic != null)
                 {
@@ -557,7 +653,6 @@ namespace ESP32BLE
                     connectedDevice = null;
                 }
 
-                txtReceived.Clear();
                 txtStatus.Text += "\nConnection terminated";
                 
                 btnScan.IsEnabled = true;
